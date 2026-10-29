@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>株式損益計算アプリ</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #f3f7f5;
+    color: #243b32;
+    font-family: system-ui, sans-serif;
+    line-height: 1.7;
+  }
+  main { max-width: 960px; margin: auto; padding: 40px 20px; }
+  h1 { font-size: clamp(25px, 5vw, 34px); margin-bottom: 8px; }
+  .intro { color: #5b7165; margin-bottom: 28px; }
+  .layout { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .card {
+    background: white;
+    border: 1px solid #dae5de;
+    border-radius: 18px;
+    padding: 26px;
+  }
+  h2 { font-size: 19px; margin: 0 0 24px; }
+  label { display: block; font-weight: 600; margin-bottom: 6px; }
+  .field { margin-bottom: 20px; }
+  .input-wrap { position: relative; }
+  input {
+    width: 100%;
+    padding: 13px 48px 13px 14px;
+    font: inherit;
+    font-size: 21px;
+    border: 1px solid #b9ccbf;
+    border-radius: 9px;
+    color: #243b32;
+    background: #fcfdfc;
+  }
+  input:focus { outline: 3px solid #b8dfc9; border-color: #29734f; }
+  input[aria-invalid="true"] { border-color: #b53b32; }
+  .unit { position: absolute; right: 15px; top: 17px; color: #617369; }
+  button {
+    padding: 10px 16px;
+    font: inherit;
+    background: white;
+    color: #305e45;
+    border: 1px solid #b9ccbf;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  button:hover { background: #eef6f1; }
+  button:focus-visible { outline: 3px solid #b8dfc9; }
+  .small { font-size: 13px; color: #617369; }
+  #error { color: #ad332a; font-size: 13px; min-height: 22px; }
+  .summary { background: #edf6f0; padding: 22px; border-radius: 12px; }
+  .summary.loss { background: #fff0ed; }
+  .summary.neutral { background: #f0f3f2; }
+  #profit {
+    font-size: clamp(28px, 4vw, 38px);
+    font-weight: 750;
+    margin: 8px 0;
+    overflow-wrap: anywhere;
+  }
+  #status { font-weight: 700; }
+  .gain #profit, .gain #status { color: #21683f; }
+  .loss #profit, .loss #status { color: #ad332a; }
+  .rate {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid #d4dfd8;
+  }
+  #rate { text-align: right; overflow-wrap: anywhere; }
+  dl { margin-bottom: 0; }
+  dl div {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+    padding: 15px 0;
+    border-bottom: 1px solid #e4ebe6;
+  }
+  dt { color: #617369; }
+  dd { margin: 0; font-weight: 650; text-align: right; overflow-wrap: anywhere; }
+  details { margin-top: 20px; font-size: 13px; }
+  summary { cursor: pointer; }
+  footer { text-align: center; margin-top: 24px; }
+  @media (max-width: 650px) {
+    main { padding: 24px 16px; }
+    .layout { grid-template-columns: 1fr; gap: 16px; }
+    .card { padding: 22px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>株式損益計算アプリ</h1>
+  <p class="intro">3つの数字で、いまの利益・損失をひと目で確認。</p>
+
+  <div class="layout">
+    <section class="card" aria-labelledby="input-title">
+      <h2 id="input-title">① 株式の情報を入力</h2>
+      <p class="small">最初は入力例を表示しています。数字を変更してください。</p>
+
+      <form id="form" novalidate>
+        <div class="field">
+          <label for="buy">買値（1株あたり）</label>
+          <div class="input-wrap">
+            <input id="buy" type="number" inputmode="decimal"
+              min="0" max="1000000000" step="0.01" value="1000"
+              required aria-describedby="error">
+            <span class="unit">円</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="current">現在の株価（1株あたり）</label>
+          <div class="input-wrap">
+            <input id="current" type="number" inputmode="decimal"
+              min="0" max="1000000000" step="0.01" value="1200"
+              required aria-describedby="error">
+            <span class="unit">円</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="shares">株数</label>
+          <div class="input-wrap">
+            <input id="shares" type="number" inputmode="numeric"
+              min="1" max="1000000000" step="1" value="100"
+              required aria-describedby="error">
+            <span class="unit">株</span>
+          </div>
+        </div>
+
+        <button type="button" id="clear">入力をクリア</button>
+        <p id="error" role="status"></p>
+      </form>
+    </section>
+
+    <section class="card" aria-labelledby="result-title">
+      <h2 id="result-title">② 計算結果</h2>
+
+      <div aria-live="polite" aria-atomic="true">
+        <div id="summary" class="summary neutral">
+          <div>損益金額</div>
+          <div id="profit">—</div>
+          <div id="status">入力待ち</div>
+          <div class="rate">
+            <span>損益率</span><strong id="rate">—</strong>
+          </div>
+        </div>
+        <dl>
+          <div><dt>購入金額</dt><dd id="cost">—</dd></div>
+          <div><dt>現在の評価額</dt><dd id="value">—</dd></div>
+        </dl>
+      </div>
+
+      <p class="small">
+        ※ 手数料・税金・配当は含みません。<br>
+        ※ 株価は自分で入力してください。<br>
+        ※ 金額は小数第2位まで、損益率は小数第2位に丸めて表示します。
+      </p>
+
+      <details>
+        <summary>計算式を見る</summary>
+        <p>
+          購入金額 ＝ 買値 × 株数<br>
+          評価額 ＝ 現在の株価 × 株数<br>
+          損益金額 ＝ 評価額 − 購入金額<br>
+          損益率 ＝ 損益金額 ÷ 購入金額 × 100
+        </p>
+      </details>
+    </section>
+  </div>
+
+  <footer class="small">入力した数値は保存・送信されません。</footer>
+</main>
+
+<script>
+  "use strict";
+
+  const el = id => document.getElementById(id);
+  const inputs = ["buy", "current", "shares"].map(el);
+  const yen = new Intl.NumberFormat("ja-JP", {
+    style: "currency",
+    currency: "JPY",
+    maximumFractionDigits: 2
+  });
+  const percent = new Intl.NumberFormat("ja-JP", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+
+  function calculate(buy, current, shares) {
+    // 価格をいったん整数にして、小数計算の誤差を抑える
+    const buyUnits = Math.round(buy * 100);
+    const currentUnits = Math.round(current * 100);
+    const cost = buyUnits * shares / 100;
+    const value = currentUnits * shares / 100;
+    const profit = (currentUnits - buyUnits) * shares / 100;
+    return {
+      cost, value, profit,
+      rate: cost === 0 ? null : profit / cost * 100
+    };
+  }
+
+  function update() {
+    const missing = inputs.some(input => input.value === "");
+    const invalid = inputs.some(input => !input.validity.valid);
+
+    inputs.forEach(input => {
+      input.setAttribute("aria-invalid",
+        String(input.value !== "" && !input.validity.valid));
+    });
+
+    el("error").textContent = missing
+      ? "3つの項目をすべて入力してください。"
+      : invalid
+      ? "価格は0〜10億円（小数第2位まで）、株数は1〜10億株の整数で入力してください。"
+      : "";
+
+    if (missing || invalid) {
+      ["profit", "rate", "cost", "value"].forEach(id => {
+        el(id).textContent = "—";
+      });
+      el("status").textContent = missing ? "入力待ち" : "入力内容を確認してください";
+      el("summary").className = "summary neutral";
+      return;
+    }
+
+    const result = calculate(...inputs.map(input => Number(input.value)));
+    const sign = result.profit > 0 ? "+" : result.profit < 0 ? "−" : "";
+
+    el("cost").textContent = yen.format(result.cost);
+    el("value").textContent = yen.format(result.value);
+    el("profit").textContent = sign + yen.format(Math.abs(result.profit));
+    el("rate").textContent = result.rate === null
+      ? "計算不可（買値0円）"
+      : sign + percent.format(Math.abs(result.rate)) + "%";
+    el("status").textContent = result.profit > 0
+      ? "利益"
+      : result.profit < 0 ? "損失" : "損益なし";
+    el("summary").className = "summary " + (
+      result.profit > 0 ? "gain" : result.profit < 0 ? "loss" : "neutral"
+    );
+  }
+
+  inputs.forEach(input => input.addEventListener("input", update));
+  el("form").addEventListener("submit", event => event.preventDefault());
+  el("clear").addEventListener("click", () => {
+    inputs.forEach(input => input.value = "");
+    update();
+    inputs[0].focus();
+  });
+  update();
+</script>
+</body>
+</html>
